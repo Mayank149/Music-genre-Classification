@@ -3,8 +3,18 @@ import joblib
 import numpy as np
 import librosa
 import os
+import shutil
+import sys
+import subprocess
 from flask_cors import CORS
 from pydub import AudioSegment  # MP3 support
+from pydub.utils import which
+
+# Run this in your Command prompt by running it as Administrator:-
+# @powershell -Command "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))"
+# choco install ffmpeg -y
+# ffmpeg -version
+
 
 app = Flask(__name__)
 CORS(app)
@@ -87,61 +97,6 @@ def extract_features(file_path):
     except Exception as e:
         print("❌ Feature extraction error:", e)
         return None
-
-@app.route('/extract-features', methods=['POST'])
-def extract_audio_features():
-    """Handles file upload, converts MP3 to WAV if needed, and extracts features."""
-    if 'file' not in request.files:
-        print("❌ No file uploaded")
-        return jsonify({"error": "No file uploaded"}), 400
-
-    file = request.files['file']
-    filename = file.filename
-    temp_path = "temp_audio.wav"
-
-    print(f"📂 Received file: {filename}")
-
-    # Convert MP3 to WAV if necessary
-    if filename.endswith('.mp3'):
-        temp_mp3 = "temp_audio.mp3"
-        file.save(temp_mp3)
-        print("✅ Saved MP3:", temp_mp3)
-
-        try:
-            audio = AudioSegment.from_mp3(temp_mp3)
-            print("✅ MP3 loaded successfully")
-            
-            audio.export(temp_path, format="wav")
-            print("✅ Converted to WAV:", temp_path)
-            
-            os.remove(temp_mp3)
-        except Exception as e:
-            print("❌ MP3 conversion failed:", e)
-            return jsonify({"error": f"MP3 conversion failed: {e}"}), 500
-    else:
-        file.save(temp_path)
-        print("✅ Saved WAV file:", temp_path)
-
-    # Extract features
-    features = extract_features(temp_path)
-    os.remove(temp_path)
-    
-    if features is None:
-        print("❌ Feature extraction failed")
-        return jsonify({"error": "Feature extraction failed"}), 500
-
-    # Convert all features to native Python types
-    features = [float(f) for f in features]  # Convert numpy.float32 to float
-
-    print(f"✅ Extracted {len(features)} features")  # Debugging Line
-
-    if len(features) != 57:
-        print("❌ Feature count mismatch! Expected 57, got", len(features))
-        return jsonify({"error": f"Feature extraction mismatch: Expected 57, got {len(features)}"}), 500
-
-    print("✅ Features extracted successfully!")
-    return jsonify({"features": features})
-
 
 @app.route('/predict', methods=['POST'])
 def predict_genre():
